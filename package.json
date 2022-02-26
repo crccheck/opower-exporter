@@ -8,5 +8,10 @@
   },
   "keywords": [],
   "author": "Chris Chang <c@crccheck.com>",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "koa": "^2.13.4",
+    "node-fetch": "^3.2.0",
+    "prom-client": "^14.0.1"
+  }
 }
