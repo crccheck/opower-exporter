@@ -5,6 +5,17 @@ import { InfluxDB, Point } from "@influxdata/influxdb-client";
 import prettier from "prettier";
 import puppeteer from "puppeteer";
 
+function getInfluxDBWriter() {
+  const token = process.env.INFLUX_TOKEN;
+  const org = process.env.INFLUX_ORG;
+  const bucket = "influxdb's Bucket";
+  const client = new InfluxDB({
+    url: "https://us-east-1-1.aws.cloud2.influxdata.com",
+    token,
+  });
+  return client.getWriteApi(org, bucket);
+}
+
 async function gatherData() {
   const browser = await puppeteer.launch({
     devtools: true,
@@ -35,20 +46,52 @@ async function gatherData() {
   await page.goto("https://dss-coa.opower.com/dss/energy/use-details");
   console.log("check use and wait");
 
-  // await page.setRequestInterception(true);
-  // // Need to catch 2 requests. Otherwise do:
-  // // https://github.com/puppeteer/puppeteer/blob/v13.4.0/docs/api.md#pagewaitforresponseurlorpredicate-options
+  const writer = getInfluxDBWriter();
+
   page.on("response", async (response) => {
     const url = response.url();
     if (url.includes("weather/hourly")) {
       console.log("hourly weather response");
       const out = prettier.format(await response.text(), { parser: "json" });
       fs.writeFileSync("data_weather.json", out);
+      const weatherData = await response.json();
+      const weatherPoints = weatherData.reads.map(({ date, meanTemperature }) =>
+        new Point("weather")
+          .floatField("temperature", meanTemperature)
+          .timestamp(new Date(date))
+      );
+      await writeApi.writePoints(weatherPoints);
+      try {
+        await writeApi.flush();
+      } catch (err) {
+        console.error(err);
+      }
     }
     if (url.includes("aggregateType=quarter_hour")) {
       console.log("hourly electricity cost found");
       const out = prettier.format(await response.text(), { parser: "json" });
       fs.writeFileSync("data_cost.json", out);
+      const costData = await response.json();
+      const costPoints = costData.reads.flatMap(
+        ({ startTime, endTime, value, readType, readComponents }) => [
+          new Point("usage")
+            .floatField("consumption", value)
+            .tag("type", readType)
+            .timestamp(new Date(startTime)),
+          ...readComponents.map(({ tierNumber, cost }) =>
+            new Point("usage")
+              .floatField("cost", cost)
+              .tag("usageTier", tierNumber)
+              .timestamp(new Date(startTime))
+          ),
+        ]
+      );
+      await writeApi.writePoints(costPoints);
+      try {
+        await writeApi.flush();
+      } catch (err) {
+        console.error(err);
+      }
     }
   });
 
@@ -59,14 +102,6 @@ async function gatherData() {
 }
 
 async function pushData() {
-  const token = process.env.INFLUX_TOKEN;
-  const org = process.env.INFLUX_ORG;
-  const bucket = "influxdb's Bucket";
-  const client = new InfluxDB({
-    url: "https://us-east-1-1.aws.cloud2.influxdata.com",
-    token,
-  });
-
   const weatherData = JSON.parse(fs.readFileSync("data_weather.json"));
   const weatherPoints = weatherData.reads.map(({ date, meanTemperature }) =>
     new Point("weather")
@@ -90,14 +125,10 @@ async function pushData() {
     ]
   );
 
-  const writeApi = client.getWriteApi(org, bucket);
-  writeApi.useDefaultTags({ foo: "bar" });
-
   await writeApi.writePoints([...weatherPoints, ...costPoints]);
   console.log("points written");
-
   try {
-    await writeApi.close();
+    await writeApi.flush();
   } catch (err) {
     console.error(err);
     console.log("Finished ERROR");
@@ -105,5 +136,5 @@ async function pushData() {
   console.log("FINISHED");
 }
 
-// await gatherData();
-await pushData();
+await gatherData();
+// await pushData();
