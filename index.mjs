@@ -34,9 +34,6 @@ async function gatherData() {
   await page.waitForSelector("div.greeting-message");
   await page.goto("https://dss-coa.opower.com/dss/energy/use-details");
   console.log("check use and wait");
-  // await page.waitForTimeout(10000);
-  await page.waitForSelector('select[aria-label="Change view"]');
-  await page.select('select[aria-label="Change view"]', "sub_day");
 
   // await page.setRequestInterception(true);
   // // Need to catch 2 requests. Otherwise do:
@@ -49,15 +46,9 @@ async function gatherData() {
       fs.writeFileSync("data_weather.json", out);
     }
     if (url.includes("aggregateType=quarter_hour")) {
-      if (url.includes("DataBrowser-v1/cws/cost")) {
-        console.log("hourly electricity cost found");
-        const out = prettier.format(await response.text(), { parser: "json" });
-        fs.writeFileSync("data_cost.json", out);
-      } else {
-        console.log("hourly electricity consumption found");
-        const out = prettier.format(await response.text(), { parser: "json" });
-        fs.writeFileSync("data_usage.json", out);
-      }
+      console.log("hourly electricity cost found");
+      const out = prettier.format(await response.text(), { parser: "json" });
+      fs.writeFileSync("data_cost.json", out);
     }
   });
 
