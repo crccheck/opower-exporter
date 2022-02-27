@@ -2,33 +2,48 @@ import "dotenv/config";
 import puppeteer from "puppeteer";
 
 const browser = await puppeteer.launch({
+  devtools: true,
   headless: false,
   userDataDir: "./chrome-profile",
+  defaultViewport: null,
 });
+// This doesn't do anything but I wish it did
+["SIGINT", "SIGTERM"].forEach((signal) => {
+  process.on(signal, async () => {
+    console.log(`Closing browser [${signal}]...`);
+    await browser.close();
+  });
+});
+
 const page = await browser.newPage();
 await page.goto("https://dss-coa.opower.com/dss/overview");
 await page.waitForTimeout(5000);
 const isLoggedOut = await page.$("#username");
+console.log("Need to login again?", !!isLoggedOut);
 if (isLoggedOut) {
   await page.type("#username", process.env.SITE_USERNAME, { delay: 5 });
   await page.type("#password", process.env.SITE_PASSWORD, { delay: 5 });
   await page.click('#LoginForm button[type="submit"]');
 }
+
 await page.waitForSelector("div.greeting-message");
 await page.goto("https://dss-coa.opower.com/dss/energy/use-details");
-await page.waitForSelector('select[aria-label="Change view"]');
-await page.select('select[aria-label="Change view"]', "sub_day");
-await page.setRequestInterception(true);
-// Need to catch 2 requests. Otherwise do:
-// https://github.com/puppeteer/puppeteer/blob/v13.4.0/docs/api.md#pagewaitforresponseurlorpredicate-options
+console.log("check use and wait");
+// await page.waitForTimeout(10000);
+// await page.waitForSelector('select[aria-label="Change view"]');
+// await page.select('select[aria-label="Change view"]', "sub_day");
+
+// await page.setRequestInterception(true);
+// // Need to catch 2 requests. Otherwise do:
+// // https://github.com/puppeteer/puppeteer/blob/v13.4.0/docs/api.md#pagewaitforresponseurlorpredicate-options
 page.on("response", async (response) => {
   const url = response.url();
-  console.log(url);
-  if (url.includes("DataBrowser")) {
-    console.log(url, await response.json());
+  if (url.includes("weather/hourly")) {
+    console.log("hourly weather response");
+  }
+  if (url.includes("aggregateType=quarter_hour")) {
+    console.log("hourly electricity cost found");
   }
 });
-await page.waitForTimeout(300000);
+await page.waitForTimeout(600000);
 await browser.close();
-// https://dss-coa.opower.com/webcenter/edge/apis/DataBrowser-v1/cws/utilities/coa/utilityAccounts/34287e72-cb5d-11eb-9c6e-0000170032c5/reads?aggregateType=bill&includeEnhancedBilling=false&includeMultiRegisterData=false
-// https://dss-coa.opower.com/webcenter/edge/apis/DataBrowser-v1/cws/weather/aggregate?interval=2021-05-12%2F2021-06-03&interval=2021-06-04%2F2021-07-06&interval=2021-07-07%2F2021-08-04&interval=2021-08-05%2F2021-09-03&interval=2021-09-04%2F2021-10-05&interval=2021-10-06%2F2021-11-03&interval=2021-11-04%2F2021-12-03&interval=2021-12-04%2F2022-01-05&interval=2022-01-06%2F2022-02-03&useCelsius=false
