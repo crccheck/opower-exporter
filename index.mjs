@@ -1,6 +1,7 @@
 import fs from "fs";
 
 import "dotenv/config";
+import { InfluxDB, Point } from "@influxdata/influxdb-client";
 import prettier from "prettier";
 import puppeteer from "puppeteer";
 
@@ -67,7 +68,34 @@ async function gatherData() {
 }
 
 async function pushData() {
-  //
+  const token = process.env.INFLUX_TOKEN;
+  const org = process.env.INFLUX_ORG;
+  const bucket = "influxdb's Bucket";
+  const client = new InfluxDB({
+    url: "https://us-east-1-1.aws.cloud2.influxdata.com",
+    token,
+  });
+
+  const writeApi = client.getWriteApi(org, bucket);
+  const weatherData = JSON.parse(fs.readFileSync("data_weather.json"));
+  const weatherPoints = weatherData.reads.map(({ date, meanTemperature }) =>
+    new Point("weather")
+      .floatField("temperature", +meanTemperature)
+      .timestamp(new Date(date))
+  );
+  console.log(weatherPoints[0]);
+  await writeApi.writePoints(weatherPoints);
+  console.log("points written");
+
+  writeApi
+    .close()
+    .then(() => {
+      console.log("FINISHED");
+    })
+    .catch((e) => {
+      console.error(e);
+      console.log("Finished ERROR");
+    });
 }
 
 // await gatherData();
