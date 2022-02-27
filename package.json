@@ -12,7 +12,6 @@
   "dependencies": {
     "@koa/router": "^10.1.1",
     "koa": "^2.13.4",
-    "node-fetch": "^3.2.0",
-    "prom-client": "^14.0.1"
+    "node-fetch": "^3.2.0"
   }
 }
