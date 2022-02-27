@@ -83,22 +83,26 @@ async function pushData() {
       .timestamp(new Date(date))
   );
   console.log(weatherPoints[0]);
-  const usageData = JSON.parse(fs.readFileSync("data_usage.json"));
-  const usagePoints = usageData.reads.map(
-    ({ startTime, endTime, consumption }) =>
+  const costData = JSON.parse(fs.readFileSync("data_cost.json"));
+  const costPoints = costData.reads.flatMap(
+    ({ startTime, endTime, value, readType, readComponents }) => [
       new Point("usage")
-        .floatField("consumption", consumption.value)
-        .tag("type", consumption.type)
-        .timestamp(new Date(startTime))
+        .floatField("consumption", value)
+        .tag("type", readType)
+        .timestamp(new Date(startTime)),
+      ...readComponents.map(({ tierNumber, cost }) =>
+        new Point("usage")
+          .floatField("cost", cost)
+          .tag("usageTier", tierNumber)
+          .timestamp(new Date(startTime))
+      ),
+    ]
   );
-  console.log(usagePoints[0]);
-  return;
 
   const writeApi = client.getWriteApi(org, bucket);
   writeApi.useDefaultTags({ foo: "bar" });
 
-  await writeApi.writePoints(weatherPoints);
-  await writeApi.writePoints(usagePoints);
+  await writeApi.writePoints([...weatherPoints, ...costPoints]);
   console.log("points written");
 
   try {
