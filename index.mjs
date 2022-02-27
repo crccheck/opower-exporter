@@ -6,22 +6,27 @@ const browser = await puppeteer.launch({
   userDataDir: "./chrome-profile",
 });
 const page = await browser.newPage();
-await page.goto("https://coautilities.com/wps/wcm/connect/occ/coa/home");
-await page.type("#username", process.env.SITE_USERNAME, { delay: 5 });
-await page.type("#password", process.env.SITE_PASSWORD, { delay: 5 });
-await page.click('#LoginForm button[type="submit"]');
+await page.goto("https://dss-coa.opower.com/dss/overview");
+await page.waitForTimeout(5000);
+const isLoggedOut = await page.$("#username");
+if (isLoggedOut) {
+  await page.type("#username", process.env.SITE_USERNAME, { delay: 5 });
+  await page.type("#password", process.env.SITE_PASSWORD, { delay: 5 });
+  await page.click('#LoginForm button[type="submit"]');
+}
 await page.waitForSelector("div.greeting-message");
 await page.goto("https://dss-coa.opower.com/dss/energy/use-details");
 await page.waitForSelector('select[aria-label="Change view"]');
 await page.select('select[aria-label="Change view"]', "sub_day");
 await page.setRequestInterception(true);
-page.on("request", (interceptedRequest) => {
-  const url = interceptedRequest.url();
+// Need to catch 2 requests. Otherwise do:
+// https://github.com/puppeteer/puppeteer/blob/v13.4.0/docs/api.md#pagewaitforresponseurlorpredicate-options
+page.on("response", async (response) => {
+  const url = response.url();
+  console.log(url);
   if (url.includes("DataBrowser")) {
-    console.log(typeof url, url);
+    console.log(url, await response.json());
   }
-
-  interceptedRequest.continue();
 });
 await page.waitForTimeout(300000);
 await browser.close();
