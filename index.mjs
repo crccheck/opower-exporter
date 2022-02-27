@@ -1,4 +1,7 @@
+import fs from "fs";
+
 import "dotenv/config";
+import prettier from "prettier";
 import puppeteer from "puppeteer";
 
 const browser = await puppeteer.launch({
@@ -30,8 +33,8 @@ await page.waitForSelector("div.greeting-message");
 await page.goto("https://dss-coa.opower.com/dss/energy/use-details");
 console.log("check use and wait");
 // await page.waitForTimeout(10000);
-// await page.waitForSelector('select[aria-label="Change view"]');
-// await page.select('select[aria-label="Change view"]', "sub_day");
+await page.waitForSelector('select[aria-label="Change view"]');
+await page.select('select[aria-label="Change view"]', "sub_day");
 
 // await page.setRequestInterception(true);
 // // Need to catch 2 requests. Otherwise do:
@@ -40,9 +43,19 @@ page.on("response", async (response) => {
   const url = response.url();
   if (url.includes("weather/hourly")) {
     console.log("hourly weather response");
+    const out = prettier.format(await response.text(), { parser: "json" });
+    fs.writeFileSync("data_weather.json", out);
   }
   if (url.includes("aggregateType=quarter_hour")) {
-    console.log("hourly electricity cost found");
+    if (url.includes("DataBrowser-v1/cws/cost")) {
+      console.log("hourly electricity cost found");
+      const out = prettier.format(await response.text(), { parser: "json" });
+      fs.writeFileSync("data_cost.json", out);
+    } else {
+      console.log("hourly electricity consumption found");
+      const out = prettier.format(await response.text(), { parser: "json" });
+      fs.writeFileSync("data_usage.json", out);
+    }
   }
 });
 await page.waitForTimeout(600000);
