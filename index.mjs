@@ -45,8 +45,10 @@ async function gatherData() {
   await page.waitForSelector("div.greeting-message");
   await page.goto("https://dss-coa.opower.com/dss/energy/use-details");
   console.log("check use and wait");
+  await page.waitForSelector('select[aria-label="Change view"]');
+  await page.select('select[aria-label="Change view"]', "sub_day");
 
-  const writer = getInfluxDBWriter();
+  const writeApi = getInfluxDBWriter();
 
   page.on("response", async (response) => {
     const url = response.url();
@@ -95,8 +97,6 @@ async function gatherData() {
     }
   });
 
-  await page.waitForTimeout(5000);
-  page.click(".chart-control-category > li:nth-child(2) > button");
   await page.waitForTimeout(600000);
   await browser.close();
 }
