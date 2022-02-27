@@ -58,5 +58,8 @@ page.on("response", async (response) => {
     }
   }
 });
+
+await page.waitForTimeout(5000);
+page.click(".chart-control-category > li:nth-child(2) > button");
 await page.waitForTimeout(600000);
 await browser.close();
