@@ -52,6 +52,7 @@ async function gatherData() {
 
   page.on("response", async (response) => {
     const url = response.url();
+    const points = [];
     if (url.includes("weather/hourly")) {
       const out = prettier.format(await response.text(), { parser: "json" });
       const weatherData = await response.json();
@@ -64,12 +65,7 @@ async function gatherData() {
           .floatField("temperature", meanTemperature)
           .timestamp(new Date(date))
       );
-      await writeApi.writePoints(weatherPoints);
-      try {
-        await writeApi.flush();
-      } catch (err) {
-        console.error(err);
-      }
+      points.push(...weatherPoints);
     }
     if (url.includes("aggregateType=quarter_hour")) {
       const out = prettier.format(await response.text(), { parser: "json" });
@@ -92,7 +88,10 @@ async function gatherData() {
           ),
         ]
       );
-      await writeApi.writePoints(costPoints);
+      points.push(...costPoints);
+    }
+    if (points.length) {
+      await writeApi.writePoints(weatherPoints);
       try {
         await writeApi.flush();
       } catch (err) {
@@ -105,40 +104,4 @@ async function gatherData() {
   await browser.close();
 }
 
-async function pushData() {
-  const weatherData = JSON.parse(fs.readFileSync("data_weather.json"));
-  const weatherPoints = weatherData.reads.map(({ date, meanTemperature }) =>
-    new Point("weather")
-      .floatField("temperature", meanTemperature)
-      .timestamp(new Date(date))
-  );
-  console.log(weatherPoints[0]);
-  const costData = JSON.parse(fs.readFileSync("data_cost.json"));
-  const costPoints = costData.reads.flatMap(
-    ({ startTime, endTime, value, readType, readComponents }) => [
-      new Point("usage")
-        .floatField("consumption", value)
-        .tag("type", readType)
-        .timestamp(new Date(startTime)),
-      ...readComponents.map(({ tierNumber, cost }) =>
-        new Point("usage")
-          .floatField("cost", cost)
-          .tag("usageTier", tierNumber)
-          .timestamp(new Date(startTime))
-      ),
-    ]
-  );
-
-  await writeApi.writePoints([...weatherPoints, ...costPoints]);
-  console.log("points written");
-  try {
-    await writeApi.flush();
-  } catch (err) {
-    console.error(err);
-    console.log("Finished ERROR");
-  }
-  console.log("FINISHED");
-}
-
 await gatherData();
-// await pushData();
