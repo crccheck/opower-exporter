@@ -76,26 +76,38 @@ async function pushData() {
     token,
   });
 
-  const writeApi = client.getWriteApi(org, bucket);
   const weatherData = JSON.parse(fs.readFileSync("data_weather.json"));
   const weatherPoints = weatherData.reads.map(({ date, meanTemperature }) =>
     new Point("weather")
-      .floatField("temperature", +meanTemperature)
+      .floatField("temperature", meanTemperature)
       .timestamp(new Date(date))
   );
   console.log(weatherPoints[0]);
+  const usageData = JSON.parse(fs.readFileSync("data_usage.json"));
+  const usagePoints = usageData.reads.map(
+    ({ startTime, endTime, consumption }) =>
+      new Point("usage")
+        .floatField("consumption", consumption.value)
+        .tag("type", consumption.type)
+        .timestamp(new Date(startTime))
+  );
+  console.log(usagePoints[0]);
+  return;
+
+  const writeApi = client.getWriteApi(org, bucket);
+  writeApi.useDefaultTags({ foo: "bar" });
+
   await writeApi.writePoints(weatherPoints);
+  await writeApi.writePoints(usagePoints);
   console.log("points written");
 
-  writeApi
-    .close()
-    .then(() => {
-      console.log("FINISHED");
-    })
-    .catch((e) => {
-      console.error(e);
-      console.log("Finished ERROR");
-    });
+  try {
+    await writeApi.close();
+  } catch (err) {
+    console.error(err);
+    console.log("Finished ERROR");
+  }
+  console.log("FINISHED");
 }
 
 // await gatherData();
