@@ -53,10 +53,12 @@ async function gatherData() {
   page.on("response", async (response) => {
     const url = response.url();
     if (url.includes("weather/hourly")) {
-      console.log("hourly weather response");
       const out = prettier.format(await response.text(), { parser: "json" });
-      fs.writeFileSync("data_weather.json", out);
       const weatherData = await response.json();
+      const date = weatherData.reads[0].date.split("T")[0];
+      const path = `archive/${date}_weather.json`;
+      fs.writeFileSync(path, out);
+      console.log("hourly weather saved    ", path);
       const weatherPoints = weatherData.reads.map(({ date, meanTemperature }) =>
         new Point("weather")
           .floatField("temperature", meanTemperature)
@@ -70,10 +72,12 @@ async function gatherData() {
       }
     }
     if (url.includes("aggregateType=quarter_hour")) {
-      console.log("hourly electricity cost found");
       const out = prettier.format(await response.text(), { parser: "json" });
-      fs.writeFileSync("data_cost.json", out);
       const costData = await response.json();
+      const date = costData.reads[0].startTime.split("T")[0];
+      const path = `archive/${date}_cost.json`;
+      fs.writeFileSync(path, out);
+      console.log("hourly electricity saved", path);
       const costPoints = costData.reads.flatMap(
         ({ startTime, endTime, value, readType, readComponents }) => [
           new Point("usage")
