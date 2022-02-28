@@ -1,19 +1,28 @@
 {
   "name": "prometheus-opower-exporter",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "main": "index.mjs",
   "scripts": {
     "dev": "nodemon --ext mjs --exec \"node index.mjs\""
   },
   "keywords": [],
   "author": "Chris Chang <c@crccheck.com>",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crccheck/opower-exporter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/crccheck/opower-exporter/issues"
+  },
+  "homepage": "https://github.com/crccheck/opower-exporter#readme",
+  "description": "",
   "dependencies": {
     "@influxdata/influxdb-client": "^1.23.0",
     "dotenv": "^16.0.0",
     "node-fetch": "^3.2.0",
     "prettier": "^2.5.1",
     "puppeteer": "^13.4.0"
-  }
+  },
+  "devDependencies": {}
 }
